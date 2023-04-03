@@ -33,6 +33,9 @@ pub enum LBT {
 
     /// Unrecognized character(s)
     #[error]
+    // skip comments
+    #[regex(r"![^\n]*", logos::skip)]
+    // skip whitespace
     #[regex(r"[ \t\n\f]+", logos::skip)]
     Error,
 }
@@ -103,7 +106,7 @@ fn math_op(lex: &mut Lexer<LBT>) -> Option<(char, char, char, char)> {
 
 #[test]
 fn tokens_parse_correctly() {
-    let mut lex = LBT::lexer("Sa4.4 Cab P'hello world' Pa i".trim());
+    let mut lex = LBT::lexer("Sa4.4 Cab P'hello world' Pa i ! This is a comment".trim());
     assert_eq!(lex.next(), Some(LBT::SaveNumber(('a', 4.4))));
     assert_eq!(lex.slice(), "Sa4.4");
     assert_eq!(lex.next(), Some(LBT::Copy(('a', 'b'))));
