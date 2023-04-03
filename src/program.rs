@@ -139,22 +139,30 @@ impl<'a> Program<'a> {
 
             // MAcab
             MathOp((op, target, a, b)) => {
-                let Val::Number(n_a) = self.data.get_var(*a).expect(&format!("Could not get variable {a}")).to_owned() else {
+                let Val::Number(n_a) = self.data
+                    .get_var(*a)
+                    .expect(&format!("Could not get variable {a}"))
+                    .to_owned() 
+                else {
                     return Err(format!("Variable {a} is not a number"));
                 };
-                let Val::Number(n_b) = self.data.get_var(*b).expect(&format!("Could not get variable {b}")).to_owned() else {
+                let Val::Number(n_b) = self.data
+                    .get_var(*b)
+                    .expect(&format!("Could not get variable {b}"))
+                    .to_owned() 
+                else {
                     return Err(format!("Variable {b} is not a number"));
                 };
 
                 // compute result
                 let result = match op {
-                    'A' => n_a + n_b,
-                    'S' => n_a - n_b,
-                    'M' => n_a * n_b,
-                    'D' => n_a / n_b,
-                    'E' => if n_a == n_b { 1.0 } else { 0.0 },
-                    'G' => if n_a > n_b { 1.0 } else { 0.0 },
-                    'L' => if n_a < n_b { 1.0 } else { 0.0 },
+                    'A' => n_a + n_b,                               // add
+                    'S' => n_a - n_b,                               // subtract
+                    'M' => n_a * n_b,                               // multiply
+                    'D' => n_a / n_b,                               // divide
+                    'E' => if n_a == n_b { 1.0 } else { 0.0 },      // equal to
+                    'G' => if n_a > n_b { 1.0 } else { 0.0 },       // greater than
+                    'L' => if n_a < n_b { 1.0 } else { 0.0 },       // less than
                     _ => {
                         return Err(format!("Invalid op {}", op));
                     },
