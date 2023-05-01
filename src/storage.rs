@@ -45,9 +45,27 @@ impl Storage {
         Ok(())
     }
 
-    pub fn copy(&mut self, from_var: char, to_var: char) -> Result<(), String> {
-        let x = self.data.get(&from_var).expect("Couldn't find variable");
-        self.data.insert(to_var, (*x).clone());
+    pub fn reset_var(&mut self, var_name: char) -> Result<(), String> {
+        self.data.remove(&var_name);
         Ok(())
+    }
+
+    pub fn reset_all(&mut self) -> Result<(), String> {
+        self.data.clear();
+        Ok(())
+    }
+
+    pub fn copy(&mut self, from_var: char, to_var: char) -> Result<(), String> {
+        let x = self.get_var(from_var).expect("Couldn't find variable");
+        let y = (*x).clone();
+        self.set_var(to_var, &y)
+    }
+
+    pub fn var_as_bool(&mut self, var_name: char) -> Option<bool> {
+        let x = self.get_var(var_name).expect("Couldn't find variable");
+        return match x {
+            Val::Number(n) => Some(*n != 0.0),
+            Val::Text(_) => Some(true),
+        };
     }
 }

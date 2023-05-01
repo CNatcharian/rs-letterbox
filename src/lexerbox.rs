@@ -2,10 +2,10 @@ use logos::{Logos, Lexer};
 
 /// A Logos-derived enum that can split a Letterbox program
 /// into individual tokens AND parse out their arguments.
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum LBT {
     /// Save a value into a variable
-    #[regex(r"S[a-z][0-9]+(\.[0-9]+)?", save_number)]
+    #[regex(r"S[a-z]\-?[0-9]+(\.[0-9]+)?", save_number)]
     SaveNumber((char, f64)),
 
     /// Save a value into a variable
@@ -18,7 +18,7 @@ pub enum LBT {
 
     /// Print the value of the given variable
     /// `Pa`
-    #[regex(r"P[a-z]", print_var)]
+    #[regex(r"P[a-z]", single_var_arg)]
     PrintVar(char),
 
     /// Print the given string, replacing underscores with spaces
@@ -30,6 +30,52 @@ pub enum LBT {
     /// `MAabc`
     #[regex(r"M[A-Z][a-z][a-z][a-z]", math_op)]
     MathOp((char, char, char, char)),
+
+    /// Performs a boolean operation.
+    /// `BXabc`
+    #[regex(r"B[A-Z][a-z][a-z][a-z]", bool_op)]
+    BoolOp((char, char, char, char)),
+
+    /// Performs command X, a times
+    /// `LaX`
+    #[regex(r"L[a-z][A-Za-z]+", base_loop)]
+    Loop((char, Box<LBT>)),
+
+    /// If a is nonzero, perform command X
+    /// `IaX`
+    #[regex(r"I[a-z][A-Za-z]+", base_loop)]
+    IfStatement((char, Box<LBT>)),
+
+    /// While a is nonzero, repeat command X
+    /// `WaX`
+    #[regex(r"W[a-z][A-Za-z]+", base_loop)]
+    WhileLoop((char, Box<LBT>)),
+
+    /// Reset variable a to 0.
+    /// `Ra`
+    #[regex(r"R[a-z]", single_var_arg)]
+    ResetVar(char),
+
+    /// Reset all variables.
+    /// `RA`
+    #[regex(r"RA")]
+    ResetAll,
+
+    /// Gets input of type X (N or S) and stores it in variable a
+    /// `GXa`
+    #[regex(r"G[A-Z][a-z]", get_input)]
+    GetInput((char, char)),
+
+    /// If a is nonzero, set it to 0, else set it to 1.
+    /// `Na`
+    #[regex(r"N[a-z]", single_var_arg)]
+    Negate(char),
+
+    /// Executes a string value as a Letterbox program.
+    /// Replaces any number of parameters with different variables.
+    /// `Xzacbd`
+    #[regex(r"X[a-z]([a-z][a-z])*", execute_var)]
+    Execute((char, String)),
 
     /// Unrecognized character(s)
     #[error]
@@ -78,7 +124,7 @@ fn copy(lex: &mut Lexer<LBT>) -> Option<(char, char)> {
     Some((var_name_1.unwrap(), var_name_2.unwrap()))
 }
 
-fn print_var(lex: &mut Lexer<LBT>) -> Option<char> {
+fn single_var_arg(lex: &mut Lexer<LBT>) -> Option<char> {
     let token = lex.slice();
     return token.chars().nth(1);
 }
@@ -104,6 +150,68 @@ fn math_op(lex: &mut Lexer<LBT>) -> Option<(char, char, char, char)> {
     Some((args[0], args[1], args[2], args[3]))
 }
 
+fn bool_op(lex: &mut Lexer<LBT>) -> Option<(char, char, char, char)> {
+    let token = lex.slice();
+    let valid_ops = "EAOX";
+    let args: Vec<char> = token[1..].chars().collect();
+    // must have exactly one op and three vars
+    if args.len() != 4 {
+        return None;
+    }
+    // op must be valid
+    if !valid_ops.contains(args[0]) {
+        return None;
+    }
+    Some((args[0], args[1], args[2], args[3]))
+}
+
+fn base_loop(lex: &mut Lexer<LBT>) -> Option<(char, Box<LBT>)> {
+    let token = lex.slice();
+    if let Some(condition) = token.chars().nth(1) {
+        let cmd_string: String = token[2..].chars().collect();
+        // must provide SOME subcommand
+        if cmd_string.len() <= 0 {
+            return None;
+        }
+        let cmd = lex_sub(cmd_string);
+        return match cmd {
+            Some(subcommand) => Some((condition, Box::new(subcommand))),
+            None => None,
+        };
+    }
+    None
+}
+
+fn execute_var(lex: &mut Lexer<LBT>) -> Option<(char, String)> {
+    let token = lex.slice();
+    if let Some(fn_var) = token.chars().nth(1) {
+        let args: String = token[2..].chars().collect();
+        return Some((fn_var, args));
+    }
+    None
+}
+
+fn get_input(lex: &mut Lexer<LBT>) -> Option<(char, char)> {
+    let token = lex.slice();
+    let valid_ops = "NS";
+    let op = token.chars().nth(1).unwrap();
+    let var = token.chars().nth(2).unwrap();
+    // op must be valid
+    if !valid_ops.contains(op) {
+        return None;
+    }
+    Some((op, var))
+}
+
+// Utilities
+
+/// Opens a new lexer to lex a subcommand.
+/// The subcommand comes in as a string.
+fn lex_sub(sub: String) -> Option<LBT> {
+    let mut lex = LBT::lexer(&sub);
+    return lex.next();
+}
+
 #[test]
 fn tokens_parse_correctly() {
     let mut lex = LBT::lexer("Sa4.4 Cab P'hello world' Pa i ! This is a comment".trim());
@@ -119,4 +227,23 @@ fn tokens_parse_correctly() {
     assert_eq!(lex.slice(), "i");
     assert_eq!(lex.next(), None);
 }
+
+#[test]
+fn advanced_tokens() {
+    let mut lex = LBT::lexer("MAbcd RA WaIcXzabcd".trim());
+    assert_eq!(lex.next(), Some(LBT::MathOp(('A', 'b', 'c', 'd'))));
+    assert_eq!(lex.slice(), "MAbcd");
+    assert_eq!(lex.next(), Some(LBT::ResetAll));
+    assert_eq!(lex.slice(), "RA");
+    assert_eq!(lex.next(), Some(
+        LBT::WhileLoop(('a', Box::new(
+            LBT::IfStatement(('c', Box::new(
+                LBT::Execute(('z', String::from("abcd")))
+            )))
+        )))
+    ));
+    assert_eq!(lex.slice(), "WaIcXzabcd");
+    assert_eq!(lex.next(), None);
+}
+
 

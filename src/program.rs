@@ -1,7 +1,9 @@
 use core::fmt;
+use regex::Regex;
 
+use crate::storage;
 use crate::storage::Storage;
-use logos::Lexer;
+use logos::{Lexer, Logos};
 use crate::lexerbox::LBT;
 use crate::lexerbox::LBT::*;
 
@@ -88,26 +90,39 @@ impl<'a> Program<'a> {
     }
 
     /// Run the next instruction as indicated by the program counter.
-    /// This is the main location where parser tokens are mapped to
-    /// execution implementations.
     pub fn step(&mut self) -> Result<(), String> {
         if self.finished {
             return Err(String::from("Program is already finished."));
         }
 
-        let find_command = self.program_list.get(self.program_counter);
-        let command: &LBT;
-        if let Some(token) = find_command {
-            command = token;
+        // Get the instruction at the next position in the program.
+        if let Some(token) = self.program_list.get(self.program_counter) {
+
+            // Clone the token to prevent an immutable borrow
+            let command = &token.clone();
+
+            // Evaluate the instruction
+            let step_result: Result<(), String> = self.evaluate(command);
+
+            // Set the current result to the most recent instruction's result
+            self.result = step_result;
+
+            // Increment the program counter
+            self.increment_counter();
+
+            Ok(())
         }
         else {
             return Err(format!("No command found at counter index {}", self.program_counter));
         }
-        // println!("{:?}", command);
+    }
 
-        // The execution begins!
-        // Do something different for each command type.
-        let step_result: Result<(), String> = match command {
+    /// Runs an instruction and returns a result.
+    /// This is the main location where parser tokens are mapped to
+    /// execution implementations. Side effects abound as these implementations 
+    /// can and will manipulate this program's data storage.
+    fn evaluate(&mut self, command: &LBT) -> Result<(), String> {
+        match command {
 
             // Sa4
             SaveNumber((var_name, float_val)) => {
@@ -170,13 +185,158 @@ impl<'a> Program<'a> {
                 // save result to storage
                 self.data.set_var(*target, &Val::Number(result))
             },
+
+            // BAcab
+            BoolOp((op, target, a, b)) => {
+                let b_a = self.data
+                    .var_as_bool(*a)
+                    .expect(&format!("Could not get variable {a}"))
+                    .to_owned();
+                let b_b = self.data
+                    .var_as_bool(*b)
+                    .expect(&format!("Could not get variable {b}"))
+                    .to_owned();
+
+                // compute result
+                let result = match op {
+                    'E' => if b_a == b_b { 1.0 } else { 0.0 },                       // equal to
+                    'A' => if b_a && b_b { 1.0 } else { 0.0 },                       // and
+                    'O' => if b_a || b_b { 1.0 } else { 0.0 },                       // or
+                    'X' => if (b_a && !b_b) || (!b_a && b_b) { 1.0 } else { 0.0 }, // xor
+                    _ => {
+                        return Err(format!("Invalid op {}", op));
+                    },
+                };
+                // save result to storage
+                self.data.set_var(*target, &Val::Number(result))
+            },
+
+            // Ra
+            ResetVar(var_name) => {
+                self.data.reset_var(*var_name)
+            },
+
+            // Na
+            Negate(var_name) => {
+                let current = self.data
+                    .var_as_bool(*var_name)
+                    .expect(&format!("Could not get variable {var_name}"))
+                    .to_owned();
+                if current {
+                    return self.data.reset_var(*var_name);
+                }
+                else {
+                    return self.data.set_var(*var_name, &Val::Number(1.0));
+                }
+            },
+
+            // RA
+            ResetAll => {
+                self.data.reset_all()
+            },
+
+            // LaX
+            Loop((times, subcommand)) => {
+                // get number of loops
+                let Val::Number(t) = self.data
+                    .get_var(*times)
+                    .expect(&format!("Could not get variable {times}"))
+                    .to_owned() 
+                else {
+                    return Err(format!("Variable {times} is not a number"));
+                };
+
+                let mut loops = t.floor() as i64;
+                
+                // execute subcommand that many times
+                while loops > 0 {
+                    if let Err(msg) = self.evaluate(subcommand) {
+                        return Err(msg);
+                    }
+                    loops -= 1;
+                }
+
+                Ok(())
+            },
+
+            // IaX
+            IfStatement((cond, subcommand)) => {
+                // get condition as bool
+                let c = self.data
+                    .var_as_bool(*cond)
+                    .expect(&format!("Could not get variable {cond}"))
+                    .to_owned();
+                
+                // execute subcommand if condition is true
+                if c {
+                    return self.evaluate(subcommand);
+                }
+
+                Ok(())
+            },
+
+            // WaX
+            WhileLoop((cond, subcommand)) => {
+                // get condition as bool
+                let mut c = self.data
+                    .var_as_bool(*cond)
+                    .expect(&format!("Could not get variable {cond}"))
+                    .to_owned();
+                
+                // execute subcommand until condition evaluates false
+                while c {
+                    if let Err(msg) = self.evaluate(subcommand) {
+                        return Err(msg);
+                    }
+
+                    c = self.data
+                    .var_as_bool(*cond)
+                    .expect(&format!("Could not get variable {cond}"))
+                    .to_owned();
+                }
+
+                Ok(())
+            },
+
+            // GXa
+            GetInput((_, _)) => {
+                Err(String::from("Input is not yet supported."))
+            },
+
+            // Xzacbd
+            Execute((fn_var, argmap)) => {
+                // validate argmap
+                for c in argmap.chars() {
+                    if !storage::is_var(&c) {
+                        return Err(format!("X: Character {c} is not a variable name"));
+                    }
+                }
+
+                // get string to execute
+                let Val::Text(prog) = self.data
+                    .get_var(*fn_var)
+                    .expect(&format!("X: Could not get variable {fn_var}"))
+                    .to_owned() 
+                else {
+                    return Err(format!("X: Variable {fn_var} is not a string"));
+                };
+
+                // substitute provided arguments
+                let prog_with_params = Self::apply_argmap(prog, argmap.to_string());
+
+                // create lexer to parse the string
+                let sub_lex = LBT::lexer(&prog_with_params);
+                // create new program using this program's params
+                let sub_program = Program::new(sub_lex, self.data, self.output_buffer);
+
+                match sub_program {
+                    Ok(mut program) => program.run(),
+                    Err(msg) => Err(msg),
+                }
+            },
+
             _ => Err(format!("Unrecognized command {:?}", command)),
-        };
-
-        self.result = step_result;
-        self.increment_counter();
-
-        Ok(())
+        }
     }
 
     /// Increment the program counter, which determines which
@@ -188,5 +348,19 @@ impl<'a> Program<'a> {
         if self.program_counter >= self.program_list.len() {
             self.finished = true;
         }
+    }
+
+    /// Used by Execute (`Xzacbd`).
+    /// 
+    /// Given a string of sequential argument mappings (i.e. "acbd"), and a String containing
+    /// a Letterbox program, replaces each usage of a parameter name with its given variable.
+    /// For the given example, all usages of 'a' will be replaced with 'c' and 'b' will be replaced
+    /// with 'd'. This does not affect hardcoded strings being saved or printed in the program.
+    #[allow(unreachable_code)]
+    fn apply_argmap(raw: String, _argmap: String) -> String {
+        return raw;
+
+        // use this regex to match quotes
+        let _rx_quotes = Regex::new(r"'[^']*'");
     }
 }

@@ -26,8 +26,65 @@ fn print_store_copy() {
     assert_lb_out!("Sb3", "");
     assert_lb_out!("Sa4 Cab Pb", "4");
     assert_lb_out!("Sa5.5 Pa", "5.5");
+    assert_lb_out!("Sa-6 Pa", "-6");
+    assert_lb_out!("Sa-6.5 Pa", "-6.5");
     assert_lb_out!("P'Hello world'", "Hello world");
     assert_lb_out!("Sz'This is a test' Pz", "This is a test");
+}
+
+#[test]
+fn reset_var() {
+    assert_lb_out!("Ra", "");
+    assert_lb_out!("Pb P' ' Sb3 Pb Rb P' ' Pb", "0 3 0");
+    assert_lb_out!("Rb Pb", "0");
+}
+
+#[test]
+fn reset_all() {
+    assert_lb_out!("RA", "");
+    assert_lb_out!("Sa1 Sb2 Sc'3' RA Pa Pb Pc", "000");
+}
+
+#[test]
+fn discrete_loop() {
+    assert_lb_out!("Sa3 Sb4 LaPb", "444");
+    assert_lb_out!("Sa2 Sd11 LdMAbab Pb", "22");
+}
+
+#[test]
+fn while_loop() {
+    assert_lb_out!("Sa10 Sb1 WaMSaab Pa", "0");
+}
+
+#[test]
+fn if_statement() {
+    assert_lb_out!("IaPb", "");
+    assert_lb_out!("Sa0.0 Sb1 IaPb", "");
+    assert_lb_out!("Sa10 Sb2 IaPb", "2");
+    assert_lb_out!("Sa10 Sb2 MGcab IcPb", "2");
+    assert_lb_out!("Sa10 Sb2 MLcab IcPb", "");
+}
+
+#[test]
+fn negate() {
+    assert_lb_out!("Na", "");
+    assert_lb_out!("Na Pa", "1");
+    assert_lb_out!("Pb P' ' Sb3 Pb Nb P' ' Pb", "0 3 0");
+    assert_lb_out!("Sa1 Sb2 MGcab Nc Pc", "1");
+}
+
+#[test]
+fn execute_basic() {
+    assert_lb_out!("Sc'' Xc", "");
+    assert_lb_out!("Sa2 Sb'a' Sc'Pb' LaXc", "aa");
+    assert_lb_out!(
+        "Sa4 Sb'loop ' Sc1 Sd'Pb MAaac MLlaf' Sf12 MLlaf WlXd Pa",
+        "loop loop loop loop loop loop loop loop 12");
+}
+
+#[test]
+fn execute_with_params() {
+    assert_lb_out!("Sa1 Sb2 Sx'Pa' Xxab", "2");
 }
 
 #[cfg(test)]
@@ -77,5 +134,45 @@ mod math_ops {
     fn less_than() {
         assert_lb_out!("Sa3 Sb2 MLcba Pc", "1");
         assert_lb_out!("Sa3 Sb2 MLcab Pc", "0");
+    }
+}
+
+#[cfg(test)]
+mod bool_ops {
+    use crate::storage::*;
+    use crate::program::*;
+    use crate::lexerbox::LBT;
+    use logos::Logos;
+
+    #[test]
+    fn equal() {
+        assert_lb_out!("Sa1 Sb'x' BEcab Pc",  "1"); // t t
+        assert_lb_out!("Sa0 Sb'' BEcab Pc",   "0"); // f t
+        assert_lb_out!("Sa'cz' Sb0 BEcab Pc", "0"); // t f
+        assert_lb_out!("Sa0 Sb0.0 BEcab Pc",  "1"); // f f
+    }
+
+    #[test]
+    fn and() {
+        assert_lb_out!("Sa1 Sb'x' BAcab Pc",  "1"); // t t
+        assert_lb_out!("Sa0 Sb'' BAcab Pc",   "0"); // f t
+        assert_lb_out!("Sa'cz' Sb0 BAcab Pc", "0"); // t f
+        assert_lb_out!("Sa0 Sb0.0 BAcab Pc",  "0"); // f f
+    }
+
+    #[test]
+    fn or() {
+        assert_lb_out!("Sa1 Sb'x' BOcab Pc",  "1"); // t t
+        assert_lb_out!("Sa0 Sb'' BOcab Pc",   "1"); // f t
+        assert_lb_out!("Sa'cz' Sb0 BOcab Pc", "1"); // t f
+        assert_lb_out!("Sa0 Sb0.0 BOcab Pc",  "0"); // f f
+    }
+
+    #[test]
+    fn xor() {
+        assert_lb_out!("Sa1 Sb'x' BXcab Pc",  "0"); // t t
+        assert_lb_out!("Sa0 Sb'' BXcab Pc",   "1"); // f t
+        assert_lb_out!("Sa'cz' Sb0 BXcab Pc", "1"); // t f
+        assert_lb_out!("Sa0 Sb0.0 BXcab Pc",  "0"); // f f
     }
 }
