@@ -268,7 +268,11 @@ impl<'a> Program<'a> {
                     return Err(format!("L: Variable {times} is not a number"));
                 };
 
-                let mut loops = t.floor() as i64;
+                let mut loops = t.floor() as usize;
+
+                if loops > self.loop_limit {
+                    return Err(format!("L: loop count exceeds loop limit"));
+                }
                 
                 // execute subcommand that many times
                 while loops > 0 {
@@ -305,8 +309,16 @@ impl<'a> Program<'a> {
                     .expect(&format!("W: Could not get variable {cond}"))
                     .to_owned();
                 
-                // execute subcommand until condition evaluates false
+                // be sure to count loops
+                let mut loops: usize = 0;
+
+                // execute subcommand until condition evaluates false or loop count reached
                 while c {
+                    loops += 1;
+                    if loops > self.loop_limit {
+                        return Err(format!("W: loop count exceeds loop limit"));
+                    }
+
                     if let Err(msg) = self.evaluate(subcommand) {
                         return Err(msg);
                     }

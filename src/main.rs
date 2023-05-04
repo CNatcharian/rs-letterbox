@@ -35,12 +35,15 @@ fn main() {
             .required(false)
             .help("Run program from file")
             .long_help("Run program from file"))
-        .arg(Arg::new("program_args").action(ArgAction::Append))
+        .arg(Arg::new("PROGRAM-ARGS")
+            .help("Pass arguments to your program")
+            .long_help("Any arguments you provide will be available to your Letterbox program.")
+            .action(ArgAction::Append))
         .get_matches();
 
     // extract program args
     let args = matches
-        .get_many::<String>("program_args")
+        .get_many::<String>("PROGRAM-ARGS")
         .unwrap_or_default()
         .map(|v| v.to_string())
         .collect::<Vec<_>>();
