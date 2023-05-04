@@ -1,0 +1,23 @@
+! This program prints out n fibonacci numbers.
+! Works for any number n = 0 or greater.
+! Input
+GNn0
+
+! variables
+Sa0 Sb1 Sg1 Sp' ' Sz0 Sc1
+
+! Make a subprogram that will:
+! - add 2 vars
+Ss'MAcab Pc Pp'
+
+P'Fibonacci(' Pn P') = '
+
+! Test if iterator count is > 0, if false print 0
+St'MGdnz' Xt
+Xtdo No IoPa
+
+! While loop step
+Su'IgXscb Ng IgXsca MSnnc Xt'
+
+! While d > 0 run the loop
+WdXu

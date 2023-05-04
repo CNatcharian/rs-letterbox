@@ -12,12 +12,33 @@ macro_rules! assert_lb_out {
         let mut data = Storage::new();
         let mut out = String::new();
         let lex = LBT::lexer($x);
-        let mut program = Program::new(lex, &mut data, &mut out).expect("Program init failed");
+        let inv = Vec::<String>::new();
+        let mut program = Program::new(lex, &mut data, &inv, &mut out, 1000).expect("Program init failed");
         let result = program.run();
         if let Err(msg) = result {
             panic!("Program failed: {}", msg);
         }
         assert_eq!(out, String::from($y));
+    };
+}
+
+/// Made for testing Letterbox programs.
+/// Asserts that string A, when run as a Letterbox program,
+/// using Vec B as inputs,
+/// produces string C as output.
+#[macro_export]
+macro_rules! assert_lb_from_input {
+    ( $x:expr, $y:expr, $z:expr ) => {
+        let mut data = Storage::new();
+        let mut out = String::new();
+        let lex = LBT::lexer($x);
+        let inv = $y;
+        let mut program = Program::new(lex, &mut data, &inv, &mut out, 1000).expect("Program init failed");
+        let result = program.run();
+        if let Err(msg) = result {
+            panic!("Program failed: {}", msg);
+        }
+        assert_eq!(out, String::from($z));
     };
 }
 
@@ -85,6 +106,21 @@ fn execute_basic() {
 #[test]
 fn execute_with_params() {
     assert_lb_out!("Sa1 Sb2 Sx'Pa' Xxab", "2");
+    assert_lb_out!("Sf'MAcab' Se2 Sg4 Xfaebgcz Pz", "6");
+}
+
+#[test]
+fn input() {
+    assert_lb_from_input!("Sa4 Pa", vec!["1".to_string(), "2".to_string()], "4");
+    assert_lb_from_input!("GNa0 GNb1 MAcab Pa Pb Pc", vec!["1".to_string(), "2".to_string()], "123");
+    assert_lb_from_input!("GSa0 Pa", vec!["Pizza".to_string()], "Pizza");
+}
+
+#[test]
+fn finish() {
+    assert_lb_out!("F", "");
+    assert_lb_out!("Sa4 Pa F Sa3 Pa", "4");
+    assert_lb_out!("Sa4 Pa IbF Sa3 Pa", "43");
 }
 
 #[cfg(test)]
@@ -134,6 +170,13 @@ mod math_ops {
     fn less_than() {
         assert_lb_out!("Sa3 Sb2 MLcba Pc", "1");
         assert_lb_out!("Sa3 Sb2 MLcab Pc", "0");
+    }
+
+    #[test]
+    fn remainder() {
+        assert_lb_out!("Sa3 Sb2 MRcab Pc", "1");
+        assert_lb_out!("Sa10 Sb10 MRcab Pc", "0");
+        assert_lb_out!("Sa5 Sb10 MRcab Pc", "5");
     }
 }
 

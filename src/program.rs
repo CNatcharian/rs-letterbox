@@ -56,21 +56,37 @@ pub struct Program<'a> {
     /// result of the whole program.
     pub result: Result<(), String>,
 
+    /// Contains all input passed into this program from the environment
+    /// i.e. the command line.
+    pub input_vec: &'a Vec<String>,
+
     /// A reference to a buffer to which output will be printed.
     pub output_buffer: &'a mut String,
+
+    /// The maximum number of times a loop can run in this program.
+    /// If a single loop exceeds this number, the program will crash.
+    pub loop_limit: usize,
 }
 
 impl<'a> Program<'a> {
     /// Create a new unexecuted program from the contents of
     /// the given lexer. Requires a reference to a Storage struct.
-    pub fn new(lex: Lexer<LBT>, starting_data: &'a mut Storage, out: &'a mut String) -> Result<Program<'a>, String> {
+    pub fn new(lex: Lexer<LBT>,
+        starting_data: &'a mut Storage,
+        inv: &'a Vec<String>,
+        out: &'a mut String,
+        loop_limit: usize,
+    ) -> Result<Program<'a>, String> {
+        let plist: Vec<LBT> = lex.collect();
         let prog = Program {
-            program_list: lex.collect(),
+            program_list: plist,
             program_counter: 0,
             data: starting_data,
             finished: false,
             result: Ok(()),
+            input_vec: inv,
             output_buffer: out,
+            loop_limit
         };
 
         Ok(prog)
@@ -106,6 +122,11 @@ impl<'a> Program<'a> {
 
             // Set the current result to the most recent instruction's result
             self.result = step_result;
+
+            // If there is an error, don't execute any further.
+            if let Err(msg) = &self.result {
+                return Err(msg.to_string());
+            }
 
             // Increment the program counter
             self.increment_counter();
@@ -156,17 +177,17 @@ impl<'a> Program<'a> {
             MathOp((op, target, a, b)) => {
                 let Val::Number(n_a) = self.data
                     .get_var(*a)
-                    .expect(&format!("Could not get variable {a}"))
+                    .expect(&format!("M: Could not get variable {a}"))
                     .to_owned() 
                 else {
-                    return Err(format!("Variable {a} is not a number"));
+                    return Err(format!("M: Variable {a} is not a number"));
                 };
                 let Val::Number(n_b) = self.data
                     .get_var(*b)
-                    .expect(&format!("Could not get variable {b}"))
+                    .expect(&format!("M: Could not get variable {b}"))
                     .to_owned() 
                 else {
-                    return Err(format!("Variable {b} is not a number"));
+                    return Err(format!("M: Variable {b} is not a number"));
                 };
 
                 // compute result
@@ -175,11 +196,12 @@ impl<'a> Program<'a> {
                     'S' => n_a - n_b,                               // subtract
                     'M' => n_a * n_b,                               // multiply
                     'D' => n_a / n_b,                               // divide
+                    'R' => n_a % n_b,                               // remainder
                     'E' => if n_a == n_b { 1.0 } else { 0.0 },      // equal to
                     'G' => if n_a > n_b { 1.0 } else { 0.0 },       // greater than
                     'L' => if n_a < n_b { 1.0 } else { 0.0 },       // less than
                     _ => {
-                        return Err(format!("Invalid op {}", op));
+                        return Err(format!("M: Invalid op {}", op));
                     },
                 };
                 // save result to storage
@@ -190,11 +212,11 @@ impl<'a> Program<'a> {
             BoolOp((op, target, a, b)) => {
                 let b_a = self.data
                     .var_as_bool(*a)
-                    .expect(&format!("Could not get variable {a}"))
+                    .expect(&format!("B: Could not get variable {a}"))
                     .to_owned();
                 let b_b = self.data
                     .var_as_bool(*b)
-                    .expect(&format!("Could not get variable {b}"))
+                    .expect(&format!("B: Could not get variable {b}"))
                     .to_owned();
 
                 // compute result
@@ -204,7 +226,7 @@ impl<'a> Program<'a> {
                     'O' => if b_a || b_b { 1.0 } else { 0.0 },                       // or
                     'X' => if (b_a && !b_b) || (!b_a && b_b) { 1.0 } else { 0.0 }, // xor
                     _ => {
-                        return Err(format!("Invalid op {}", op));
+                        return Err(format!("B: Invalid op {}", op));
                     },
                 };
                 // save result to storage
@@ -240,10 +262,10 @@ impl<'a> Program<'a> {
                 // get number of loops
                 let Val::Number(t) = self.data
                     .get_var(*times)
-                    .expect(&format!("Could not get variable {times}"))
+                    .expect(&format!("L: Could not get variable {times}"))
                     .to_owned() 
                 else {
-                    return Err(format!("Variable {times} is not a number"));
+                    return Err(format!("L: Variable {times} is not a number"));
                 };
 
                 let mut loops = t.floor() as i64;
@@ -264,7 +286,7 @@ impl<'a> Program<'a> {
                 // get condition as bool
                 let c = self.data
                     .var_as_bool(*cond)
-                    .expect(&format!("Could not get variable {cond}"))
+                    .expect(&format!("I: Could not get variable {cond}"))
                     .to_owned();
                 
                 // execute subcommand if condition is true
@@ -280,7 +302,7 @@ impl<'a> Program<'a> {
                 // get condition as bool
                 let mut c = self.data
                     .var_as_bool(*cond)
-                    .expect(&format!("Could not get variable {cond}"))
+                    .expect(&format!("W: Could not get variable {cond}"))
                     .to_owned();
                 
                 // execute subcommand until condition evaluates false
@@ -291,16 +313,38 @@ impl<'a> Program<'a> {
 
                     c = self.data
                     .var_as_bool(*cond)
-                    .expect(&format!("Could not get variable {cond}"))
+                    .expect(&format!("W: Could not get variable {cond}"))
                     .to_owned();
                 }
 
                 Ok(())
             },
 
-            // GXa
-            GetInput((_, _)) => {
-                Err(String::from("Input is not yet supported."))
+            // GXa1
+            GetInput((op, var, num)) => {
+                let index = num.floor() as usize;
+                let Some(input) = self.input_vec.get(index) else {
+                    return Err(format!("G: no input at index {num}"))
+                };
+                let input_item = input.to_string();
+
+                if !storage::is_var(var) {
+                    return Err(format!("G: character {var} is not a variable name"));
+                }
+                match *op {
+                    'N' => {
+                        if let Some(val) = input_item.parse::<f64>().ok() {
+                            self.data.set_var(*var, &Val::Number(val))
+                        }
+                        else {
+                            Err(format!("G: Could not parse input into number: {input_item}"))
+                        }
+                    },
+                    'S' => {
+                        self.data.set_var(*var, &Val::Text(String::from(input_item)))
+                    },
+                    _ => Err(format!("G: invalid operation {op}")),
+                }
             },
 
             // Xzacbd
@@ -327,7 +371,12 @@ impl<'a> Program<'a> {
                 // create lexer to parse the string
                 let sub_lex = LBT::lexer(&prog_with_params);
                 // create new program using this program's params
-                let sub_program = Program::new(sub_lex, self.data, self.output_buffer);
+                let sub_program = Program::new(
+                    sub_lex,
+                    self.data, 
+                    self.input_vec, 
+                    self.output_buffer, 
+                    self.loop_limit.clone());
 
                 match sub_program {
                     Ok(mut program) => program.run(),
@@ -335,7 +384,13 @@ impl<'a> Program<'a> {
                 }
             },
 
-            _ => Err(format!("Unrecognized command {:?}", command)),
+            // F
+            Finish => {
+                self.finished = true;
+                Ok(())
+            },
+
+            _ => Err(format!("Unrecognized instruction at counter index {}", self.program_counter)),
         }
     }
 
@@ -356,11 +411,29 @@ impl<'a> Program<'a> {
     /// a Letterbox program, replaces each usage of a parameter name with its given variable.
     /// For the given example, all usages of 'a' will be replaced with 'c' and 'b' will be replaced
     /// with 'd'. This does not affect hardcoded strings being saved or printed in the program.
-    #[allow(unreachable_code)]
-    fn apply_argmap(raw: String, _argmap: String) -> String {
-        return raw;
+    fn apply_argmap(raw: String, argmap: String) -> String {
 
         // use this regex to match quotes
-        let _rx_quotes = Regex::new(r"'[^']*'");
+        let rx_quotes = Regex::new(r"'[^']*'").expect("Invalid regex");
+
+        // remove all quoted strings from the text
+        let quoted_strings = rx_quotes.find_iter(&raw);
+        let text_no_quotes = rx_quotes.replace_all(&raw, "%%%");
+        let mut replaceable_text = String::from(text_no_quotes);
+        
+        // replace each parameter with its given variable
+        let argvec: Vec<char> = argmap.chars().collect();
+        for i in (0..argmap.len()).step_by(2) {
+            let param = argvec[i];
+            let arg = argvec[i + 1];
+            replaceable_text = replaceable_text.replace(&String::from(param), &String::from(arg));
+        }
+        
+        // put the quotes back
+        for quote in quoted_strings {
+            replaceable_text = replaceable_text.replacen("%%%", quote.as_str(), 1);
+        }
+
+        return replaceable_text;
     }
 }
