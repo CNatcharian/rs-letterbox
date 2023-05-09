@@ -22,6 +22,14 @@ pub enum LBT {
     #[regex(r"C[a-z][a-z]", copy)]
     Copy((char, char)),
 
+    /// Append the value of variable b to variable a.
+    /// If a is not a string, it becomes a string.
+    /// The type of the appended variable is not affected.
+    /// 
+    /// Usage: `Aab`
+    #[regex(r"A[a-z][a-z]", copy)]
+    Append((char, char)),
+
     /// Print the value of the given variable
     /// 
     /// Usage: `Pa`
@@ -57,6 +65,12 @@ pub enum LBT {
     /// Usage: `IaX`
     #[regex(r"I[a-z][A-Za-z]+", base_loop)]
     IfStatement((char, Box<LBT>)),
+
+    /// If a IS EQUAL TO ZERO, perform command X
+    /// 
+    /// Usage: `UaX`
+    #[regex(r"U[a-z][A-Za-z]+", base_loop)]
+    Unless((char, Box<LBT>)),
 
     /// While a is nonzero, repeat command X
     /// 

@@ -54,6 +54,17 @@ fn print_store_copy() {
 }
 
 #[test]
+fn append() {
+    assert_lb_out!("Arc Pr", "00");
+    assert_lb_out!("Sr'' Arc Pr", "0");
+    assert_lb_out!("Sr'' Sc12.5 Arc Pr", "12.5");
+    assert_lb_out!("Sr'The secret is ' Sc12.5 Arc Pr", "The secret is 12.5");
+    assert_lb_out!("Sr23 Sc'chicken' Arc Pr", "23chicken");
+    assert_lb_out!("Sr'fizz' Sc'buzz' Arc Arc Pr", "fizzbuzzbuzz");
+    assert_lb_out!("Sr'fizz' Sc'buzz' Arr Arr Pr", "fizzfizzfizzfizz");
+}
+
+#[test]
 fn reset_var() {
     assert_lb_out!("Ra", "");
     assert_lb_out!("Pb P' ' Sb3 Pb Rb P' ' Pb", "0 3 0");
@@ -84,6 +95,15 @@ fn if_statement() {
     assert_lb_out!("Sa10 Sb2 IaPb", "2");
     assert_lb_out!("Sa10 Sb2 MGcab IcPb", "2");
     assert_lb_out!("Sa10 Sb2 MLcab IcPb", "");
+}
+
+#[test]
+fn unless() {
+    assert_lb_out!("Sb5 UaPb", "5");
+    assert_lb_out!("Sa0.0 Sb1 UaPb", "1");
+    assert_lb_out!("Sa10 Sb2 UaPb", "");
+    assert_lb_out!("Sa10 Sb2 MGcab UcPb", "");
+    assert_lb_out!("Sa10 Sb2 MLcab UcPb", "2");
 }
 
 #[test]

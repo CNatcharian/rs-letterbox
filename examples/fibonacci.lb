@@ -4,20 +4,18 @@
 GNn0
 
 ! variables
-Sa0 Sb1 Sg1 Sp' ' Sz0 Sc1
+Sa0 Sb1 Sg1 Sp' ' Sz0 Sc1 Sr''
 
-! Make a subprogram that will:
-! - add 2 vars
-Ss'MAcab Pc Pp'
+! Make a subprogram that will add 2 vars
+Ss'MAcab Arc Arp'
 
 P'Fibonacci(' Pn P') = '
 
 ! Test if iterator count is > 0, if false print 0
-St'MGdnz' Xt
-Xtdo No IoPa
+St'MGdnz' Xt UdPa
 
 ! While loop step
 Su'IgXscb Ng IgXsca MSnnc Xt'
 
 ! While d > 0 run the loop
-WdXu
+WdXu Pr

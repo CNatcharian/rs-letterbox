@@ -160,6 +160,31 @@ impl<'a> Program<'a> {
                 self.data.copy(*from_var, *to_var)
             },
 
+            // Aab
+            Append((base_var, add_var)) => {
+                // get base string
+                let Some(base_val) = self.data.get_var(*base_var).to_owned() else {
+                    return Err(format!("A: {base_var} is not a variable"));
+                };
+                let mut base_string = match base_val {
+                    Val::Text(text) => text.to_string(),
+                    Val::Number(num) => num.to_string(),
+                };
+                
+                // get string to append
+                let Some(add_val) = self.data.get_var(*add_var).to_owned() else {
+                    return Err(format!("A: {add_var} is not a variable"));
+                };
+                let add_string = match add_val {
+                    Val::Text(text) => text.to_string(),
+                    Val::Number(num) => num.to_string(),
+                };
+
+                // append the strings and save them to the base variable
+                base_string.push_str(&add_string);
+                self.data.set_var(*base_var, &Val::Text(base_string))
+            },
+
             // Pa
             PrintVar(var_name) => {
                 let print_str = self.data.get_var(*var_name).expect("Could not get variable.");
@@ -301,6 +326,22 @@ impl<'a> Program<'a> {
                 Ok(())
             },
 
+            // UaX
+            Unless((cond, subcommand)) => {
+                // get condition as bool
+                let c = self.data
+                    .var_as_bool(*cond)
+                    .expect(&format!("I: Could not get variable {cond}"))
+                    .to_owned();
+                
+                // execute subcommand if condition is false
+                if !c {
+                    return self.evaluate(subcommand);
+                }
+
+                Ok(())
+            },
+
             // WaX
             WhileLoop((cond, subcommand)) => {
                 // get condition as bool
@@ -422,7 +463,10 @@ impl<'a> Program<'a> {
     /// Given a string of sequential argument mappings (i.e. "acbd"), and a String containing
     /// a Letterbox program, replaces each usage of a parameter name with its given variable.
     /// For the given example, all usages of 'a' will be replaced with 'c' and 'b' will be replaced
-    /// with 'd'. This does not affect hardcoded strings being saved or printed in the program.
+    /// with 'd'.
+    /// 
+    /// This does not affect hardcoded strings being saved or printed in the program, despite the current
+    /// lexer implementation not allowing for strings within strings.
     fn apply_argmap(raw: String, argmap: String) -> String {
 
         // use this regex to match quotes
