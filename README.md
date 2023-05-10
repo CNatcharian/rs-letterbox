@@ -33,3 +33,23 @@ This repository contains a rust crate defining the Letterbox programming languag
 | Na | Negate var a (if true set it to 0, otherwise set it to 1) |
 | F | Finish the program |
 | Xabdce... | Executes the string in var a as a Letterbox program. Replaces the given pairs of variables before executing (in this example, all usages of b will become d, and all usages of c will become e) |
+
+### Appendix A - Math operations
+| Command | Description |
+|---------|-------------|
+| MAcab | c = a + b |
+| MScab | c = a - b |
+| MMcab | c = a * b |
+| MDcab | c = a / b |
+| MRcab | c = a % b |
+| MEcab | c = a == b |
+| MGcab | c = a > b |
+| MLcab | c = a < b |
+
+### Appendix B - Boolean operations
+| Command | Description |
+|---------|-------------|
+| BEcab | c = a == b |
+| BAcab | c = a AND b |
+| BOcab | c = a OR b |
+| BXcab | c = a XOR b |
