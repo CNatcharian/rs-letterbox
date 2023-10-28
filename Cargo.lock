@@ -112,6 +112,15 @@ name = "letterbox"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "letterbox-lang",
+]
+
+[[package]]
+name = "letterbox-lang"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc5362ffdb7e61ee41154bf35f3ca760eb841386d55a5f379de14608d9666641"
+dependencies = [
  "logos",
  "regex",
 ]

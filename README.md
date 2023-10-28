@@ -1,12 +1,15 @@
 # Letterbox
+
 ## An esoteric programming language
 
 This repository contains a rust crate defining the Letterbox programming language. Components:
+
 - Lexer, made with Logos
 - Parser
 - Command-line interpreter
 
 ## Quick Reference
+
 - A Letterbox program is a list of commands separated by whitespace.
 - Commands begin with an uppercase letter and take in one or more arguments.
 - Each program manipulates a database of 26 variables, one for each lowercase letter.
@@ -14,6 +17,7 @@ This repository contains a rust crate defining the Letterbox programming languag
 - A variable is considered false if it is exactly 0 and true otherwise.
 
 ### Commands
+
 | Command | Description |
 |---------|-------------|
 | Pa | Print the value of variable a |
@@ -35,6 +39,7 @@ This repository contains a rust crate defining the Letterbox programming languag
 | Xabdce... | Executes the string in var a as a Letterbox program. Replaces the given pairs of variables before executing (in this example, all usages of b will become d, and all usages of c will become e) |
 
 ### Appendix A - Math operations
+
 | Command | Description |
 |---------|-------------|
 | MAcab | c = a + b |
@@ -47,6 +52,7 @@ This repository contains a rust crate defining the Letterbox programming languag
 | MLcab | c = a < b |
 
 ### Appendix B - Boolean operations
+
 | Command | Description |
 |---------|-------------|
 | BEcab | c = a == b |

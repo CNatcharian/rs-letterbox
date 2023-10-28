@@ -7,18 +7,8 @@ use std::io;
 use std::io::Write;
 use std::process::exit;
 
-mod program;
-mod storage;
-mod lexerbox;
-
-#[cfg(test)]
-mod lb_tests;
-
-use crate::program::Program;
-use crate::storage::Storage;
-use crate::lexerbox::LBT;
+use letterbox_lang::prelude::*;
 use clap::Command;
-use logos::{Logos, Lexer};
 use clap::{Arg, ArgAction, arg};
 
 fn main() {
@@ -71,11 +61,11 @@ fn run_program_from_file(file_path: String, loop_limit: usize, args: Vec<String>
     
     // println!("File contents:\n{}", program_string);
 
-    let lex: Lexer<LBT> = LBT::lexer(program_string.trim());
-    let mut data = Storage::new();
+    let lex: Lexer<LbToken> = LbToken::lexer(program_string.trim());
+    let mut data = LbStorage::new();
     let input_vec = args.to_owned();
     let mut output_buffer = String::new();
-    let mut program = Program::new(
+    let mut program = LbProgram::new(
         lex,
         &mut data,
         &input_vec,
@@ -96,7 +86,7 @@ fn run_program_from_file(file_path: String, loop_limit: usize, args: Vec<String>
 fn run_command_line(loop_limit: usize, args: Vec<String>) {
 
     // Establish a single data storage.
-    let mut total_storage = Storage::new();
+    let mut total_storage = LbStorage::new();
 
     loop {
         // Collect line of program from input.
@@ -112,8 +102,8 @@ fn run_command_line(loop_limit: usize, args: Vec<String>) {
         let mut line_output = String::new();
 
         // Lex and parse the line by creating a new Program instance referencing the Storage.
-        let lex = LBT::lexer(line.trim());
-        let mut program = Program::new(lex,
+        let lex: Lexer<LbToken> = LbToken::lexer(line.trim());
+        let mut program = LbProgram::new(lex,
             &mut total_storage,
             &args,
             &mut line_output,
